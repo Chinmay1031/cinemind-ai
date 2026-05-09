@@ -8,7 +8,7 @@ from app.services.recommendation_service import stream_intro, extract_movies_fro
 
 st.set_page_config(page_title="CineMind AI", layout="wide")
 
-# ── Global card styles ──────────────────────────────────────────────────────
+# ── Global card styles 
 st.markdown("""
 <style>
 .movie-card {
@@ -44,6 +44,23 @@ st.markdown("""
     margin: 0;
 }
 .star { color: #f5c518; }
+.providers {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.provider-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #ffffff;
+    background: #2a2a3d;
+    border: 1px solid #444466;
+    border-radius: 20px;
+    padding: 3px 10px;
+    white-space: nowrap;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,7 +69,11 @@ st.subheader("Your AI-powered cinematic recommendation assistant")
 
 query = st.text_input("Describe the kind of movie you want to watch:")
 
-num_recommendations = st.slider("How many recommendations?", min_value=1, max_value=15, value=5)
+col1, col2 = st.columns([3, 1])
+with col1:
+    num_recommendations = st.slider("How many recommendations?", min_value=1, max_value=15, value=5)
+with col2:
+    country = st.selectbox("Your country", ["US", "IN", "GB", "CA", "AU", "DE", "FR", "JP"], index=0)
 
 if st.button("Get Recommendations"):
 
@@ -77,7 +98,7 @@ if st.button("Get Recommendations"):
     st.subheader("Recommended Movies")
 
     with st.spinner("Fetching movie details..."):
-        movies = extract_movies_from_text(full_text)
+        movies = extract_movies_from_text(full_text, country=country)
 
     if movies:
         for movie in movies:
@@ -86,6 +107,16 @@ if st.button("Get Recommendations"):
             stars = "★" * round(rating / 2) + "☆" * (5 - round(rating / 2))
             year = movie.get("year") or (movie.get("release_date") or "")[:4]
             explanation = movie.get("explanation", "")
+
+            providers = movie.get("providers", [])
+            if providers:
+                badges = "".join(
+                    f'<span class="provider-badge">{p["provider_name"]}</span>'
+                    for p in providers[:6]
+                )
+                providers_html = f'<div class="providers"><span style="font-size:0.75rem;color:#aaa;margin-right:0.4rem;">Stream on:</span>{badges}</div>'
+            else:
+                providers_html = '<div style="font-size:0.75rem;color:#555;margin-top:0.6rem;">Not available on streaming in this region</div>'
 
             st.markdown(f"""
 <div class="movie-card">
@@ -96,6 +127,7 @@ if st.button("Get Recommendations"):
       <span class="star">{stars}</span>&nbsp;{rating:.1f}&nbsp;&nbsp;·&nbsp;&nbsp;📅 {movie.get('release_date', 'N/A')}
     </div>
     <p class="movie-explanation">{explanation}</p>
+    {providers_html}
   </div>
 </div>
 """, unsafe_allow_html=True)

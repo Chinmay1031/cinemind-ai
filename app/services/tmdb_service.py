@@ -49,3 +49,10 @@ def search_movies_by_title(title):
     response = requests.get(url, params=params)
 
     return response.json()
+
+
+def get_watch_providers(movie_id, country="US"):
+    url = f"{BASE_URL}/movie/{movie_id}/watch/providers"
+    response = requests.get(url, params={"api_key": API_KEY})
+    country_data = response.json().get("results", {}).get(country, {})
+    return country_data.get("flatrate", [])

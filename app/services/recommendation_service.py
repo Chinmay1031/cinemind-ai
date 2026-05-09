@@ -3,7 +3,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from app.services.tmdb_service import search_movies_by_title
+from app.services.tmdb_service import search_movies_by_title, get_watch_providers
 
 load_dotenv()
 
@@ -41,6 +41,7 @@ def _fetch_tmdb_data(title):
         return None
     movie = movies[0]
     return {
+        "id": movie.get("id"),
         "title": movie.get("title"),
         "poster_path": movie.get("poster_path"),
         "rating": movie.get("vote_average"),
@@ -68,8 +69,8 @@ def stream_intro(user_query, count=5):
             yield content, full_text
 
 
-def extract_movies_from_text(full_text):
-    """Parse the JSON block and enrich each movie with TMDB poster data."""
+def extract_movies_from_text(full_text, country="US"):
+    """Parse the JSON block and enrich each movie with TMDB poster + streaming data."""
     try:
         json_start = full_text.rfind("```json")
         json_end = full_text.rfind("```", json_start + 1)
@@ -90,6 +91,7 @@ def extract_movies_from_text(full_text):
         seen.add(title)
         tmdb = _fetch_tmdb_data(title)
         if tmdb and tmdb.get("poster_path"):
+            providers = get_watch_providers(tmdb["id"], country) if tmdb.get("id") else []
             enriched.append({
                 "title": tmdb["title"],
                 "year": movie.get("year", ""),
@@ -97,6 +99,7 @@ def extract_movies_from_text(full_text):
                 "poster_path": tmdb["poster_path"],
                 "rating": tmdb["rating"],
                 "release_date": tmdb["release_date"],
+                "providers": providers,
             })
 
     return enriched
