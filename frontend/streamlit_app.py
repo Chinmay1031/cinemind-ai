@@ -4,6 +4,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
+# Streamlit Cloud doesn't load .env files; inject secrets into os.environ
+# before services are imported so module-level os.getenv() calls pick up
+# the correct values (API_KEY = os.getenv(...) runs at import time).
+try:
+    for _k, _v in st.secrets.items():
+        os.environ.setdefault(_k, str(_v))
+except Exception:
+    pass  # local dev uses .env via python-dotenv
+
 from app.services.recommendation_service import stream_intro, extract_movies_from_text
 
 st.set_page_config(page_title="CineMind AI", layout="wide")
