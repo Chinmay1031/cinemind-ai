@@ -1,0 +1,99 @@
+import streamlit as st
+
+from app.services.recommendation_service import stream_intro, extract_movies_from_text
+
+st.set_page_config(page_title="CineMind AI", layout="wide")
+
+# ── Global card styles ──────────────────────────────────────────────────────
+st.markdown("""
+<style>
+.movie-card {
+    display: flex;
+    gap: 1.25rem;
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    align-items: flex-start;
+    border-left: 4px solid #e94560;
+}
+.movie-card img {
+    width: 90px;
+    min-width: 90px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+.movie-info h3 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1.15rem;
+    color: #ffffff;
+}
+.movie-meta {
+    font-size: 0.8rem;
+    color: #aaaaaa;
+    margin-bottom: 0.6rem;
+}
+.movie-explanation {
+    font-size: 0.9rem;
+    color: #cccccc;
+    line-height: 1.5;
+    margin: 0;
+}
+.star { color: #f5c518; }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🎬 CineMind AI")
+st.subheader("Your AI-powered cinematic recommendation assistant")
+
+query = st.text_input("Describe the kind of movie you want to watch:")
+
+num_recommendations = st.slider("How many recommendations?", min_value=1, max_value=15, value=5)
+
+if st.button("Get Recommendations"):
+
+    # ── Streaming intro ────────────────────────────────────────────────────
+    intro_placeholder = st.empty()
+    full_text = ""
+
+    for chunk, accumulated in stream_intro(query, num_recommendations):
+        full_text = accumulated
+
+        # Strip the JSON block in real time so it never appears
+        json_start = full_text.rfind("```json")
+        display = full_text[:json_start].strip() if json_start != -1 else full_text
+        intro_placeholder.markdown(display + " ▌")
+
+    json_start = full_text.rfind("```json")
+    display = full_text[:json_start].strip() if json_start != -1 else full_text
+    intro_placeholder.markdown(display)
+
+    # ── Horizontal movie cards ─────────────────────────────────────────────
+    st.divider()
+    st.subheader("Recommended Movies")
+
+    with st.spinner("Fetching movie details..."):
+        movies = extract_movies_from_text(full_text)
+
+    if movies:
+        for movie in movies:
+            poster_url = f"https://image.tmdb.org/t/p/w200{movie['poster_path']}"
+            rating = movie.get("rating") or 0
+            stars = "★" * round(rating / 2) + "☆" * (5 - round(rating / 2))
+            year = movie.get("year") or (movie.get("release_date") or "")[:4]
+            explanation = movie.get("explanation", "")
+
+            st.markdown(f"""
+<div class="movie-card">
+  <img src="{poster_url}" alt="{movie['title']} poster" />
+  <div class="movie-info">
+    <h3>{movie['title']} <span style="font-weight:400;color:#aaa;">({year})</span></h3>
+    <div class="movie-meta">
+      <span class="star">{stars}</span>&nbsp;{rating:.1f}&nbsp;&nbsp;·&nbsp;&nbsp;📅 {movie.get('release_date', 'N/A')}
+    </div>
+    <p class="movie-explanation">{explanation}</p>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+    else:
+        st.info("Could not fetch poster data for the recommendations.")
