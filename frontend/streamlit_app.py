@@ -65,7 +65,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🎬 CineMind AI")
-st.subheader("Your AI-powered cinematic recommendation assistant")
+st.subheader("Your AI-powered cinema recommendation assistant")
 
 query = st.text_input("Describe the kind of movie you want to watch:")
 
