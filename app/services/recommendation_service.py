@@ -19,13 +19,22 @@ User Query:
 
 Write a short 1-2 sentence intro acknowledging the user's mood/request.
 
-Then recommend exactly {count} movies. At the very end output ONLY this JSON block and nothing after it:
+Then recommend exactly {count} movies. Follow these rules strictly:
+- Vary across sub-genres, decades (mix classics with modern), and popularity (include at least one lesser-known or cult film)
+- Do not pick two films by the same director or from the same franchise
+{exclusion_block}
+At the very end output ONLY this JSON block and nothing after it:
 ```json
 {{
   "movies": [
     {{
       "title": "Exact Movie Title",
       "year": "YYYY",
+      "director": "Director Full Name",
+      "cast": ["Lead Actor", "Supporting Actor", "Supporting Actor"],
+      "genres": ["Primary Genre", "Secondary Genre"],
+      "mood": "3-5 word mood descriptor",
+      "plot_summary": "1-2 sentence neutral plot summary.",
       "explanation": "2-3 sentence explanation of why this movie fits the request."
     }}
   ]
@@ -49,15 +58,27 @@ def _fetch_tmdb_data(title):
     }
 
 
-def stream_intro(user_query, count=5):
+def stream_intro(user_query, count=5, excluded_titles=None):
     """Streams only the intro text (everything before the JSON block)."""
+    if excluded_titles:
+        titles_str = ", ".join(f'"{t}"' for t in excluded_titles)
+        exclusion_block = f"- Do NOT recommend any of these already-seen movies: {titles_str}\n"
+    else:
+        exclusion_block = ""
+
+    prompt = _PROMPT_TEMPLATE.format(
+        user_query=user_query,
+        count=count,
+        exclusion_block=exclusion_block,
+    )
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert cinematic AI recommendation assistant."},
-            {"role": "user", "content": _PROMPT_TEMPLATE.format(user_query=user_query, count=count)},
+            {"role": "user", "content": prompt},
         ],
-        temperature=0.7,
+        temperature=1.0,
         stream=True,
     )
 
@@ -95,6 +116,11 @@ def extract_movies_from_text(full_text, country="US"):
             enriched.append({
                 "title": tmdb["title"],
                 "year": movie.get("year", ""),
+                "director": movie.get("director", ""),
+                "cast": movie.get("cast", []),
+                "genres": movie.get("genres", []),
+                "mood": movie.get("mood", ""),
+                "plot_summary": movie.get("plot_summary", ""),
                 "explanation": movie.get("explanation", ""),
                 "poster_path": tmdb["poster_path"],
                 "rating": tmdb["rating"],

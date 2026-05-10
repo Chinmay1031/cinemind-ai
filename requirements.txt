@@ -6,6 +6,7 @@ openai
 faiss-cpu
 sentence-transformers
 streamlit
+audio-recorder-streamlit
 python-dotenv
 requests
 pandas
